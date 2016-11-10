@@ -42,7 +42,7 @@ how to supply points of the correct type.
 @docs BoundingBox
 
 # Construct
-@docs fromCorners, fromPoint, fromPoints, insert, insertMany, union, intersection, intersects
+@docs fromCorners, fromPoint, fromPoints, insert, insertMany
 
 # Extract
 @docs corners, center, topRight, topLeft, bottomRight, bottomLeft, width, height, area
@@ -51,7 +51,7 @@ how to supply points of the correct type.
 @docs contains, inside, outside, containsStrict, insideStrict, outsideStrict
 
 # Transform
-@docs translate, scale
+@docs translate, scale, union, intersection, intersects
 -}
 
 import Vec2 exposing (Vec2, minimal, maximal, pointwise, pointwiseTuple, fold)
