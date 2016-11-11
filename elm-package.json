@@ -1,7 +1,7 @@
 {
     "version": "1.0.0",
     "summary": "bounding box operations",
-    "repository": "https://github.com/folkertdev/elm-bounding-box",
+    "repository": "https://github.com/folkertdev/elm-bounding-box.git",
     "license": "BSD3",
     "source-directories": [
         "src"
