@@ -24,16 +24,14 @@ some other type to represent locations in 2D space.
 # Vec2
 @docs Vec2
 
+# Conversion
+@docs fromTuple, toTuple, fromRecord, toRecord
 
 # Extrema
 @docs minimal, maximal
 
 # Helpers
 @docs pointwise, pointwiseTuple, fold
-
-# Conversion
-@docs fromTuple, toTuple, fromRecord, toRecord
-
 -}
 
 import Math.Vector2 as Vec2
@@ -76,7 +74,7 @@ use foldr on it.
 -}
 fold : (a -> b -> b) -> b -> ( a, a ) -> b
 fold f default ( x, y ) =
-    f y (f x default)
+    f x (f y default)
 
 
 {-| Apply a function pointwise, but let the result be a tuple.

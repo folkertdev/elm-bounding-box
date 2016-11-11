@@ -19,14 +19,11 @@ module BoundingBox
           -- dimensions
         , width
         , height
-        , area
           -- membership
         , contains
-        , containsStrict
+        , onOuterEdge
         , inside
-        , insideStrict
         , outside
-        , outsideStrict
           -- modify bounding boxes
         , translate
         , scale
@@ -45,18 +42,19 @@ how to supply points of the correct type.
 @docs fromCorners, fromPoint, fromPoints, insert, insertMany
 
 # Extract
-@docs corners, center, topRight, topLeft, bottomRight, bottomLeft, width, height, area
+@docs corners, center, topRight, topLeft, bottomRight, bottomLeft, width, height
 
 # Membership
-@docs contains, inside, outside, containsStrict, insideStrict, outsideStrict
+@docs contains, onOuterEdge, inside, outside, intersects
 
 # Transform
-@docs translate, scale, union, intersection, intersects
+@docs union, intersection, translate, scale
 -}
 
 import Vec2 exposing (Vec2, minimal, maximal, pointwise, pointwiseTuple, fold)
 import Math.Vector2 as Vec2 exposing (vec2, getX, getY)
 import Math.Vector2
+import Maybe.Extra as Maybe
 
 
 {-| A bounding box is defined by two points: a
@@ -185,13 +183,6 @@ height =
     uncurry (flip (-)) << tuple2MapBoth getY
 
 
-{-| Get the area of a bounding box.
--}
-area : BoundingBox -> Float
-area bbox =
-    width bbox * height bbox
-
-
 {-| Check whether a point lies within a bounding box
 
     bbox = fromCorners (vec2 0 0) (vec2 10 10)
@@ -201,29 +192,46 @@ area bbox =
     contains (vec2 20 10) bbox == False
 -}
 contains : Vec2 -> BoundingBox -> Bool
-contains p b =
+contains vector =
     let
-        check ( l, h ) =
-            and (pointwiseTuple (<=) l p) && and (pointwiseTuple (<=) p h)
+        helper lower upper =
+            List.all identity
+                [ getX vector >= getX lower
+                , getY vector >= getY lower
+                , getX vector <= getX upper
+                , getY vector <= getY upper
+                ]
     in
-        check (corners b)
+        uncurry helper << corners
 
 
-{-| Check whether a point lies strictly within a bounding box
+{-| Check whether a vector lies on the outer edge of a bounding box
 
-    bbox = fromCorners (vec2 0 0) (vec2 10 10)
+Useful for implementing strict membership, for example
 
-    containsStrict (vec2  5  5) bbox == True
-    containsStrict (vec2 10 10) bbox == False
-    containsStrict (vec2 20 10) bbox == False
+    containsStrict : Vec2 -> BoundingBox -> Bool
+    containsStrict p b =
+        contains p b && not (onOuterEdge p b)
+
+
+    insideStrict ((BoundingBox lower upper) as u) v =
+        inside u v && not (onOuterEdge lower v || onOuterEdge upper v)
+
+    outsideStrict ((BoundingBox lower upper) as u) v =
+        outside u v && not (onOuterEdge lower v || onOuterEdge upper v)
 -}
-containsStrict : Vec2 -> BoundingBox -> Bool
-containsStrict p b =
+onOuterEdge : Vec2 -> BoundingBox -> Bool
+onOuterEdge vector =
     let
-        check ( l, h ) =
-            and (pointwiseTuple (<) l p) && and (pointwiseTuple (<) p h)
+        helper lower upper =
+            List.any identity
+                [ getX vector == getX lower
+                , getX vector == getX upper
+                , getY vector == getY lower
+                , getY vector == getY upper
+                ]
     in
-        check (corners b)
+        uncurry helper << corners
 
 
 {-| Check whether the first bounding box is contained by the second.
@@ -238,27 +246,10 @@ The boxes may still intersect at their boundaries
     inside other empty == False
 -}
 inside : BoundingBox -> BoundingBox -> Bool
-inside u v =
+inside inner outer =
     -- a bounding box lies inside another if both its corners lie inside it.
-    corners u
-        |> mapBoth (flip contains v)
-        |> uncurry (&&)
-
-
-{-| Check whether the first bounding box is strictly contained by the second.
-
-    empty = fromCorners (vec2 0 0) (vec2 0 0)
-    other = fromCorners (vec2 0 0) (vec2 10 10)
-
-    inside empty empty == False
-    inside empty other == False
-    inside other empty == False
--}
-insideStrict : BoundingBox -> BoundingBox -> Bool
-insideStrict u v =
-    -- a bounding box lies inside another if both its corners lie inside it.
-    corners u
-        |> mapBoth (flip containsStrict v)
+    corners inner
+        |> mapBoth (flip contains outer)
         |> uncurry (&&)
 
 
@@ -283,25 +274,6 @@ outside inner outer =
             ]
 
 
-{-| Check whether the first bounding box lies strictly outside of the second.
--}
-outsideStrict : BoundingBox -> BoundingBox -> Bool
-outsideStrict inner outer =
-    let
-        ( innerLower, innerUpper ) =
-            toRecords inner
-
-        ( outerLower, outerUpper ) =
-            toRecords outer
-    in
-        List.any identity
-            [ innerUpper.x < outerLower.x
-            , innerUpper.y < outerLower.y
-            , innerLower.x > outerUpper.x
-            , innerLower.y > outerUpper.y
-            ]
-
-
 {-| Extend a bounding box to include a vector. If
 the vector already lies within the bounding box, nothing changes.
 
@@ -321,7 +293,7 @@ insert vec (BoundingBox bottom top) =
 -}
 insertMany : List Vec2 -> BoundingBox -> BoundingBox
 insertMany points base =
-    List.foldr insert base points
+    Maybe.unwrap base (union base) (fromPoints points)
 
 
 {-| Combine two bounding boxes into one.
@@ -372,23 +344,28 @@ intersection one other =
 -}
 translate : Vec2 -> BoundingBox -> BoundingBox
 translate vec =
-    uncurry fromCorners << mapBoth (Vec2.add vec) << corners
+    map (pointwise (+) vec)
 
 
-{-| Scale a bounding box by a factor
+{-| Scale a bounding box component-wise by a vector
 
     fromCorners (vec2 0 0) (vec2 10 10)
-        |> scale 2
+        |> scale (vec2 2 2)
         |> corners
         -- == ( vec2 0 0, vec2 20 20 )
 -}
-scale : Float -> BoundingBox -> BoundingBox
-scale factor =
-    uncurry fromCorners << mapBoth (Vec2.scale factor) << corners
+scale : Vec2 -> BoundingBox -> BoundingBox
+scale factors =
+    map (pointwise (*) factors)
 
 
 
 -- HELPERS
+
+
+map : (Vec2 -> Vec2) -> BoundingBox -> BoundingBox
+map f (BoundingBox a b) =
+    BoundingBox (f a) (f b)
 
 
 tuple2Map : (a -> b -> c) -> ( a, a ) -> ( b, b ) -> ( c, c )
