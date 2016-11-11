@@ -8,6 +8,7 @@ import Vec2
 import String
 import Math.Vector2 exposing (vec2)
 import BoundingBox exposing (..)
+import Laws
 
 
 toTuples bbox =
@@ -46,9 +47,23 @@ floatBBox =
         Fuzz.map2 fromCorners customVector customVector
 
 
+{-| Get the area of a bounding box.
+-}
+area : BoundingBox -> Float
+area bbox =
+    width bbox * height bbox
+
+
 boundingbox =
     describe "The BoundingBox module"
-        [ describe "Constructing"
+        [ describe "Laws"
+            [ Laws.associativity union bbox
+            , Laws.commutativity union bbox
+            , Laws.idempotence insert vector bbox
+            , Laws.leftIdentity scale (vec2 1 1) bbox
+            , Laws.leftIdentity translate (vec2 0 0) bbox
+            ]
+        , describe "Constructing"
             [ test "fromCorners with correct corners"
                 <| \() ->
                     fromCorners (vec2 0 0) (vec2 10 10)
@@ -64,17 +79,6 @@ boundingbox =
                     fromCorners (vec2 10 10) (vec2 0 0)
                         |> toTuples
                         |> Expect.equal ( ( 0, 0 ), ( 10, 10 ) )
-              {-
-                 , fuzz (tuple ( int, int )) "fromPoint produces degenerate bounding box"
-                     <| \( a, b ) ->
-                         let
-                             ( x, y ) =
-                                 ( toFloat a, toFloat b )
-                         in
-                             fromPoint (vec2 x y)
-                                 |> toTuples
-                                 |> Expect.equal ( ( x, y ), ( x, y ) )
-              -}
             , test "insert: works as expected"
                 <| \() ->
                     fromCorners (vec2 0 0) (vec2 10 10)
@@ -166,7 +170,7 @@ boundingbox =
             , test "scale: works as expected"
                 <| \() ->
                     example
-                        |> scale 2
+                        |> scale (vec2 2 2)
                         |> toTuples
                         |> Expect.equal ( ( 0, 20 ), ( 40, 60 ) )
             ]
@@ -187,22 +191,6 @@ boundingbox =
                         else
                             contains point bbox
                                 |> Expect.false "point lies without"
-            , fuzz (tuple ( vector, bbox )) "containsStrict"
-                <| \( point, bbox ) ->
-                    let
-                        ( lower, upper ) =
-                            corners bbox
-                                |> (\( a, b ) -> ( Vec2.toRecord a, Vec2.toRecord b ))
-
-                        ( x, y ) =
-                            Vec2.toTuple point
-                    in
-                        if x > lower.x && x < upper.x && y > lower.y && y < upper.y then
-                            containsStrict point bbox
-                                |> Expect.true "point lies within"
-                        else
-                            containsStrict point bbox
-                                |> Expect.false "point lies without"
             , fuzz (tuple ( bbox, bbox )) "inside"
                 <| \( inner, outer ) ->
                     let
@@ -218,21 +206,21 @@ boundingbox =
                         else
                             inside inner outer
                                 |> Expect.false "inner lies without"
-            , fuzz (tuple ( bbox, bbox )) "insideStrict"
-                <| \( inner, outer ) ->
+            , fuzz (tuple ( vector, bbox )) "onOuterEdge"
+                <| \( inner_, outer ) ->
                     let
-                        ( innerLower, innerUpper ) =
-                            toRecords inner
+                        inner =
+                            Vec2.toRecord inner_
 
                         ( outerLower, outerUpper ) =
                             toRecords outer
                     in
-                        if innerLower.x > outerLower.x && innerUpper.x < outerUpper.x && innerLower.y > outerLower.y && innerUpper.y < outerUpper.y then
-                            insideStrict inner outer
-                                |> Expect.true "inner lies within"
+                        if inner.x == outerLower.x || inner.x == outerUpper.x || inner.y == outerLower.y || inner.y == outerUpper.y then
+                            onOuterEdge inner_ outer
+                                |> Expect.true "Expected: point lies on the outer edge"
                         else
-                            insideStrict inner outer
-                                |> Expect.false "inner lies without"
+                            onOuterEdge inner_ outer
+                                |> Expect.false "Expected: point does not lie on the outer edge"
             ]
         , fuzz (tuple ( bbox, bbox )) "outside"
             <| \( inner, outer ) ->
@@ -262,32 +250,3 @@ boundingbox =
 
 main =
     run boundingbox
-
-
-equalUpTo : Float -> Float -> Expect.Expectation
-equalUpTo expected actual =
-    let
-        splitString =
-            expected
-                |> toString
-                |> String.split "."
-
-        dp =
-            case splitString of
-                [ _, decimals ] ->
-                    decimals
-                        |> String.length
-                        |> toFloat
-
-                _ ->
-                    0
-
-        multiplier =
-            10.0 ^ dp
-    in
-        actual
-            |> (*) multiplier
-            |> round
-            |> toFloat
-            |> (\x -> x / multiplier)
-            |> Expect.equal expected
