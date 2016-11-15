@@ -9,6 +9,7 @@ import BoundingBox exposing (fromCorners, width, height)
 import Svg exposing (Svg)
 import Svg.Attributes exposing (stroke, strokeWidth, points, fill)
 import String
+import Tuple exposing (first, second)
 
 
 type alias Settings =
@@ -34,8 +35,8 @@ fitBoxToPoints settings vectors contents =
             )
 
         viewbox w h =
-            [ fst offsets
-            , snd offsets
+            [ first offsets
+            , second offsets
             , w + marginX
             , h + marginY + marginY
             ]
@@ -48,8 +49,8 @@ fitBoxToPoints settings vectors contents =
     in
         Svg.svg
             [ Svg.Attributes.viewBox (uncurry viewbox dimensions)
-            , Svg.Attributes.width (toString (fst dimensions + fst offsets))
-            , Svg.Attributes.height (toString (marginY + snd dimensions + snd offsets))
+            , Svg.Attributes.width (toString (first dimensions + first offsets))
+            , Svg.Attributes.height (toString (marginY + second dimensions + second offsets))
             ]
             contents
 
