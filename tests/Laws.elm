@@ -7,8 +7,8 @@ import Expect
 
 associativity : (a -> a -> a) -> Fuzzer a -> Test
 associativity operation argumentFuzz =
-    fuzz (tuple3 ( argumentFuzz, argumentFuzz, argumentFuzz )) "associativity"
-        <| \( argument1, argument2, argument3 ) ->
+    fuzz (tuple3 ( argumentFuzz, argumentFuzz, argumentFuzz )) "associativity" <|
+        \( argument1, argument2, argument3 ) ->
             let
                 left =
                     operation (operation argument1 argument2) argument3
@@ -21,8 +21,8 @@ associativity operation argumentFuzz =
 
 commutativity : (a -> a -> a) -> Fuzzer a -> Test
 commutativity operation argumentFuzz =
-    fuzz (tuple ( argumentFuzz, argumentFuzz )) "commutativity"
-        <| \( argument1, argument2 ) ->
+    fuzz (tuple ( argumentFuzz, argumentFuzz )) "commutativity" <|
+        \( argument1, argument2 ) ->
             let
                 left =
                     operation argument1 argument2
@@ -35,8 +35,8 @@ commutativity operation argumentFuzz =
 
 idempotence : (a -> b -> b) -> Fuzzer a -> Fuzzer b -> Test
 idempotence operation leftFuzz rightFuzz =
-    fuzz (tuple ( leftFuzz, rightFuzz )) "idempotence"
-        <| \( argument1, argument2 ) ->
+    fuzz (tuple ( leftFuzz, rightFuzz )) "idempotence" <|
+        \( argument1, argument2 ) ->
             let
                 left =
                     operation argument1 argument2
@@ -47,15 +47,15 @@ idempotence operation leftFuzz rightFuzz =
                 Expect.equal left right
 
 
-leftIdentity : (a -> b -> b) -> a -> Fuzzer b -> Test
-leftIdentity operation e argumentFuzz =
-    fuzz (argumentFuzz) "left identity"
-        <| \argument ->
+leftIdentity : String -> (a -> b -> b) -> a -> Fuzzer b -> Test
+leftIdentity name operation e argumentFuzz =
+    fuzz (argumentFuzz) ("left identity" ++ name) <|
+        \argument ->
             Expect.equal (operation e argument) argument
 
 
 rightIdentity : (b -> a -> b) -> a -> Fuzzer b -> Test
 rightIdentity operation e argumentFuzz =
-    fuzz (argumentFuzz) "right identity"
-        <| \argument ->
+    fuzz (argumentFuzz) "right identity" <|
+        \argument ->
             Expect.equal (operation argument e) argument

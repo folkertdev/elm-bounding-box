@@ -4,7 +4,6 @@ import Expect
 import Test exposing (..)
 import Fuzz exposing (..)
 import Vec2
-import String
 import Math.Vector2 exposing (vec2)
 import BoundingBox exposing (..)
 import Laws
@@ -53,18 +52,14 @@ area bbox =
     width bbox * height bbox
 
 
-all =
-    boundingbox
-
-
 boundingbox =
     describe "The BoundingBox module"
         [ describe "Laws"
             [ Laws.associativity union bbox
             , Laws.commutativity union bbox
             , Laws.idempotence insert vector bbox
-            , Laws.leftIdentity scale (vec2 1 1) bbox
-            , Laws.leftIdentity translate (vec2 0 0) bbox
+            , Laws.leftIdentity "scale" scale (vec2 1 1) bbox
+            , Laws.leftIdentity "translate" translate (vec2 0 0) bbox
             ]
         , describe "Constructing"
             [ test "fromCorners with correct corners" <|
